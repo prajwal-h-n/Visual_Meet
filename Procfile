@@ -1,0 +1,1 @@
+web: gunicorn videoconferencing.wsgi:application --log-file - 
