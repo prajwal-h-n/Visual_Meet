@@ -90,12 +90,13 @@ IS_RENDER = os.environ.get('RENDER', '') == 'true'
 
 # Get MongoDB URI from environment variable or use default
 MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/videoconferencedb')
+MONGODB_NAME = MONGODB_URI.split('/')[-1].split('?')[0]  # Extract database name from URI
 
 # Use MongoDB
 DATABASES = {
     'default': {
         'ENGINE': 'djongo',
-        'NAME': 'videoconferencedb',
+        'NAME': MONGODB_NAME,
         'CLIENT': {
             'host': MONGODB_URI,
         }
