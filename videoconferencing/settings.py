@@ -81,15 +81,28 @@ WSGI_APPLICATION = 'videoconferencing.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Check if running on Render.com
+IS_RENDER = os.environ.get('RENDER', '') == 'true'
+
+if IS_RENDER:
+    # Use a persistent database directory on Render
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join('/opt/render/project/', 'db.sqlite3'),
+        }
     }
-}
+else:
+    # Use the default database location for local development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Ensure the database directory exists
-DB_DIR = os.path.dirname(os.path.join(BASE_DIR, 'db.sqlite3'))
+DB_DIR = os.path.dirname(DATABASES['default']['NAME'])
 if not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR)
 
