@@ -17,11 +17,25 @@ def index(request):
 def register(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
+        print(f"Register form posted: {request.POST.get('email')}")
+        
         if form.is_valid():
-            form.save()
-            return render(request, 'login.html', {'success': "Registration successful. Please login."})
+            print("Form is valid, saving user...")
+            try:
+                user = form.save()
+                print(f"User created: {user.id} - {user.username}")
+                
+                # Optional: Auto-login user after registration
+                # request.session['user_id'] = user.id
+                # return redirect("/dashboard")
+                
+                return render(request, 'login.html', {'success': "Registration successful. Please login."})
+            except Exception as e:
+                print(f"User save error: {e}")
+                return render(request, 'register.html', {'error': f"Registration failed: {str(e)}"})
         else:
             error_message = form.errors.as_text()
+            print(f"Form errors: {error_message}")
             return render(request, 'register.html', {'error': error_message})
 
     return render(request, 'register.html')
@@ -31,9 +45,41 @@ def login_view(request):
     if request.method=="POST":
         email = request.POST.get('email')
         password = request.POST.get('password')
+        
+        # Print debug info (will show in server logs)
+        print(f"Login attempt: {email}")
+        
+        # Try to find user directly first
+        try:
+            # Check if user exists with this email
+            user_exists = User.objects.filter(username=email).exists()
+            print(f"User exists check: {user_exists}")
+            
+            if user_exists:
+                # If user exists, try to get the user directly
+                user = User.objects.get(username=email)
+                
+                # Check password manually
+                from django.contrib.auth.hashers import check_password
+                if check_password(password, user.password):
+                    print("Password check: SUCCESS")
+                    # Store user ID in session
+                    request.session['user_id'] = user.id
+                    return redirect("/dashboard")
+                else:
+                    print("Password check: FAILED")
+                    return render(request, 'login.html', {'error': "Invalid password. Please try again."})
+            else:
+                print("User not found")
+                return render(request, 'login.html', {'error': f"User with email '{email}' not found."})
+        except Exception as e:
+            print(f"Direct user lookup error: {e}")
+            
+        # If direct approach fails, try standard Django authenticate
         user = authenticate(request, username=email, password=password)
         if user is not None:
-            # Store user info in session the simplest way possible
+            print("Django authenticate: SUCCESS")
+            # Store user info in session
             try:
                 # Store user ID in our custom session key
                 request.session['user_id'] = user.id
@@ -47,8 +93,9 @@ def login_view(request):
             except Exception as e:
                 # If something went wrong, log it and show a friendly message
                 print(f"Login error: {e}")
-                return render(request, 'login.html', {'error': "Login failed. Please try again."})
+                return render(request, 'login.html', {'error': f"Login failed: {str(e)}"})
         else:
+            print("Django authenticate: FAILED")
             return render(request, 'login.html', {'error': "Invalid credentials. Please try again."})
 
     return render(request, 'login.html')
@@ -142,3 +189,34 @@ def join_room(request):
         roomID = request.POST['roomID']
         return redirect("/meeting?roomID=" + roomID)
     return render(request, 'joinroom.html')
+
+def admin_view(request):
+    """Admin view to list all users - for debugging only"""
+    # For security in production, you should restrict this to admin users
+    # This is just for debugging purposes
+    
+    users = User.objects.all()
+    user_list = []
+    for user in users:
+        user_list.append({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'is_active': user.is_active,
+            'date_joined': user.date_joined,
+        })
+    
+    # Add authentication debugging
+    debug_info = {
+        'session_keys': list(request.session.keys()),
+        'user_id_in_session': request.session.get('user_id'),
+        'django_auth_user_id': request.session.get(SESSION_KEY),
+    }
+    
+    return render(request, 'admin_view.html', {
+        'users': user_list,
+        'debug_info': debug_info,
+        'user_count': len(user_list)
+    })
