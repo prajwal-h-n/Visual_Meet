@@ -8,6 +8,13 @@ pip install -r requirements.txt
 # Create static directory if it doesn't exist
 mkdir -p static
 
+# Create database directory
+mkdir -p /opt/render/project/
+
+# Run database initialization script
+echo "Running database initialization script"
+python init_render_db.py
+
 # Collect static files
 python manage.py collectstatic --no-input
 

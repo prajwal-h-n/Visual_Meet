@@ -2,13 +2,22 @@
 # exit on error
 set -o errexit
 
-echo "Running database migrations"
-python manage.py makemigrations
+echo "Creating database directory if it doesn't exist"
+mkdir -p /opt/render/project/
+
+echo "Running initial migrations for auth models"
+python manage.py migrate auth
+python manage.py migrate admin
+python manage.py migrate contenttypes
+python manage.py migrate sessions
+
+echo "Running remaining migrations"
+python manage.py makemigrations videoconference_app
 python manage.py migrate
 
-# Option: Create a superuser if needed (uncomment if desired)
-# echo "Creating superuser"
-# python manage.py shell -c "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'adminpassword') if not User.objects.filter(username='admin').exists() else None"
+# Create a superuser for admin access (uncomment and change credentials as needed)
+echo "Creating superuser"
+python manage.py shell -c "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'admin123!') if not User.objects.filter(username='admin').exists() else print('Admin user already exists')"
 
 echo "Starting server"
 # Run the command passed to this script

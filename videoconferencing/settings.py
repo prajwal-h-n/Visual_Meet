@@ -85,11 +85,21 @@ WSGI_APPLICATION = 'videoconferencing.wsgi.application'
 IS_RENDER = os.environ.get('RENDER', '') == 'true'
 
 if IS_RENDER:
-    # Use a persistent database directory on Render
+    # Use a persistent volume directory on Render
+    PERSISTENT_DIR = '/opt/render/project'
+    
+    # Make sure directory exists
+    if not os.path.exists(PERSISTENT_DIR):
+        os.makedirs(PERSISTENT_DIR)
+    
+    # Database configuration for Render
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join('/opt/render/project/', 'db.sqlite3'),
+            'NAME': os.path.join(PERSISTENT_DIR, 'database.sqlite3'),
+            'OPTIONS': {
+                'timeout': 30,  # 30 seconds
+            }
         }
     }
 else:
