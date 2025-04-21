@@ -88,6 +88,11 @@ DATABASES = {
     }
 }
 
+# Ensure the database directory exists
+DB_DIR = os.path.dirname(os.path.join(BASE_DIR, 'db.sqlite3'))
+if not os.path.exists(DB_DIR):
+    os.makedirs(DB_DIR)
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
