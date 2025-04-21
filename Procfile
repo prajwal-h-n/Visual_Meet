@@ -1,1 +1,1 @@
-web: bash render_start.sh gunicorn videoconferencing.wsgi:application --log-file - 
+web: bash render_start.sh 
