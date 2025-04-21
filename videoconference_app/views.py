@@ -17,71 +17,41 @@ def index(request):
 def register(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
-        print(f"Register form posted: {request.POST.get('email')}")
-        
         if form.is_valid():
-            print("Form is valid, saving user...")
-            try:
-                user = form.save()
-                print(f"User created: {user.id} - {user.username}")
-                
-                # Optional: Auto-login user after registration
-                # request.session['user_id'] = user.id
-                # return redirect("/dashboard")
-                
-                return render(request, 'login.html', {'success': "Registration successful. Please login."})
-            except Exception as e:
-                print(f"User save error: {e}")
-                return render(request, 'register.html', {'error': f"Registration failed: {str(e)}"})
+            form.save()
+            return render(request, 'login.html', {'success': "Registration successful. Please login."})
         else:
             error_message = form.errors.as_text()
-            print(f"Form errors: {error_message}")
             return render(request, 'register.html', {'error': error_message})
 
     return render(request, 'register.html')
 
 
 def login_view(request):
-    context = {}
-    
-    if request.method == 'POST':
+    if request.method=="POST":
         email = request.POST.get('email')
         password = request.POST.get('password')
-        
-        print(f"Login attempt: email={email}")
-        
-        try:
-            # Try to authenticate with the username first
-            user = authenticate(request, username=email, password=password)
-            
-            # If that fails, try with email as username
-            if user is None:
-                # Get user by email
-                try:
-                    user_obj = User.objects.get(email=email)
-                    user = authenticate(request, username=user_obj.username, password=password)
-                    print(f"Authenticated with email: {email}")
-                except User.DoesNotExist:
-                    user = None
-                    print(f"No user found with email: {email}")
-            
-            if user is not None:
-                login(request, user)
-                print(f"User logged in: {user.username}, ID: {user.id}")
-                
-                # Store both user_id and user_email in session
+        user = authenticate(request, username=email, password=password)
+        if user is not None:
+            # Store user info in session the simplest way possible
+            try:
+                # Store user ID in our custom session key
                 request.session['user_id'] = user.id
-                request.session['user_email'] = user.email
                 
-                return redirect('dashboard')
-            else:
-                print("Authentication failed")
-                context['error'] = 'Invalid email or password'
-        except Exception as e:
-            print(f"Login error: {str(e)}")
-            context['error'] = 'An error occurred during login'
-    
-    return render(request, 'login.html', context)
+                # Skip Django's standard login as it's problematic with MongoDB
+                # Manually add the signal for compatibility with other code
+                user_logged_in.send(sender=user.__class__, request=request, user=user)
+                
+                # Redirect the user after login
+                return redirect("/dashboard")
+            except Exception as e:
+                # If something went wrong, log it and show a friendly message
+                print(f"Login error: {e}")
+                return render(request, 'login.html', {'error': "Login failed. Please try again."})
+        else:
+            return render(request, 'login.html', {'error': "Invalid credentials. Please try again."})
+
+    return render(request, 'login.html')
 
 # Custom decorator to handle both standard and custom auth
 def custom_login_required(view_func):
@@ -89,17 +59,10 @@ def custom_login_required(view_func):
         # Skip Django's standard authentication
         # as it's causing issues with MongoDB
         user_id = None
-        user_email = None
         
         # Try to get ID from our custom session
         try:
             user_id = request.session.get('user_id')
-        except:
-            pass
-        
-        # Try to get email from our custom session
-        try:
-            user_email = request.session.get('user_email')
         except:
             pass
             
@@ -118,16 +81,6 @@ def custom_login_required(view_func):
         if user_id:
             try:
                 user = User.objects.get(id=user_id)
-                # Add user to request
-                request.user = user
-                return view_func(request, *args, **kwargs)
-            except User.DoesNotExist:
-                pass
-        
-        # If we have a user email, try to get the user by email
-        if user_email:
-            try:
-                user = User.objects.get(username=user_email)
                 # Add user to request
                 request.user = user
                 return view_func(request, *args, **kwargs)
@@ -189,34 +142,3 @@ def join_room(request):
         roomID = request.POST['roomID']
         return redirect("/meeting?roomID=" + roomID)
     return render(request, 'joinroom.html')
-
-def admin_view(request):
-    """Admin view to list all users - for debugging only"""
-    # For security in production, you should restrict this to admin users
-    # This is just for debugging purposes
-    
-    users = User.objects.all()
-    user_list = []
-    for user in users:
-        user_list.append({
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'is_active': user.is_active,
-            'date_joined': user.date_joined,
-        })
-    
-    # Add authentication debugging
-    debug_info = {
-        'session_keys': list(request.session.keys()),
-        'user_id_in_session': request.session.get('user_id'),
-        'django_auth_user_id': request.session.get(SESSION_KEY),
-    }
-    
-    return render(request, 'admin_view.html', {
-        'users': user_list,
-        'debug_info': debug_info,
-        'user_count': len(user_list)
-    })

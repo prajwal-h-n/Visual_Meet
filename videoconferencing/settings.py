@@ -93,23 +93,23 @@ MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/videoconf
 MONGODB_NAME = MONGODB_URI.split('/')[-1].split('?')[0]  # Extract database name from URI
 
 # Use MongoDB
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'djongo',
-#         'NAME': MONGODB_NAME,
-#         'CLIENT': {
-#             'host': MONGODB_URI,
-#         }
-#     }
-# }
-
-# For local development without MongoDB, uncomment these lines and comment out the MongoDB config above
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'djongo',
+        'NAME': MONGODB_NAME,
+        'CLIENT': {
+            'host': MONGODB_URI,
+        }
     }
 }
+
+# For local development without MongoDB, uncomment these lines and comment out the MongoDB config above
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators

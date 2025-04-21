@@ -8,7 +8,6 @@ urlpatterns = [
     path('meeting/',views.videocall, name='meeting'),
     path('logout/',views.logout_view, name='logout'),
     path('join/',views.join_room, name='join_room'),
-    path('admin_debug/',views.admin_view, name='admin_debug'),
     path('',views.index, name='index'),
 
 ]
