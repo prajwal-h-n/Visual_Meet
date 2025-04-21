@@ -37,6 +37,16 @@ class RegisterForm(UserCreationForm):
             # Set username to email to ensure we can look up users consistently
             self.instance.username = self.cleaned_data['email']
             self.instance.email = self.cleaned_data['email']
+            
+            # Get first_name and last_name from the form data if available
+            first_name = self.data.get('first_name', '')
+            last_name = self.data.get('last_name', '')
+            
+            if first_name:
+                self.instance.first_name = first_name
+            if last_name:
+                self.instance.last_name = last_name
+                
             user = super().save(commit=commit)
             print(f"DEBUG RegisterForm.save() - User saved successfully. ID: {user.id}")
             return user
