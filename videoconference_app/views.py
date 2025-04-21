@@ -33,32 +33,21 @@ def login_view(request):
         password = request.POST.get('password')
         user = authenticate(request, username=email, password=password)
         if user is not None:
-            # Custom login to avoid the MongoDB update issue
+            # Store user info in session the simplest way possible
             try:
-                # Set the backend attribute if it's not set
-                if not hasattr(user, 'backend'):
-                    user.backend = 'django.contrib.auth.backends.ModelBackend'
+                # Store user ID in our custom session key
+                request.session['user_id'] = user.id
                 
-                # Add the user's ID to the session
-                request.session[SESSION_KEY] = user.id
-                # Add the backend to the session
-                if hasattr(user, 'backend'):
-                    request.session[BACKEND_SESSION_KEY] = user.backend
-                
-                # Django's signal to indicate login
+                # Skip Django's standard login as it's problematic with MongoDB
+                # Manually add the signal for compatibility with other code
                 user_logged_in.send(sender=user.__class__, request=request, user=user)
                 
                 # Redirect the user after login
                 return redirect("/dashboard")
             except Exception as e:
-                # Fall back to standard login if custom approach fails
-                try:
-                    login(request, user)
-                    return redirect("/dashboard")
-                except:
-                    # Last resort: just set session directly
-                    request.session['user_id'] = user.id
-                    return redirect("/dashboard")
+                # If something went wrong, log it and show a friendly message
+                print(f"Login error: {e}")
+                return render(request, 'login.html', {'error': "Login failed. Please try again."})
         else:
             return render(request, 'login.html', {'error': "Invalid credentials. Please try again."})
 
@@ -67,12 +56,28 @@ def login_view(request):
 # Custom decorator to handle both standard and custom auth
 def custom_login_required(view_func):
     def wrapped_view(request, *args, **kwargs):
-        # Check for standard authentication
-        if request.user.is_authenticated:
-            return view_func(request, *args, **kwargs)
+        # Skip Django's standard authentication
+        # as it's causing issues with MongoDB
+        user_id = None
         
-        # Check for our custom authentication
-        user_id = request.session.get('user_id')
+        # Try to get ID from our custom session
+        try:
+            user_id = request.session.get('user_id')
+        except:
+            pass
+            
+        # Try to get ID from Django's session
+        try:
+            session_key = request.session.get(SESSION_KEY)
+            # Handle 'None' string value
+            if session_key == 'None':
+                session_key = None
+            if session_key and str(session_key).isdigit():
+                user_id = int(session_key)
+        except:
+            pass
+        
+        # If we have a user ID, try to get the user
         if user_id:
             try:
                 user = User.objects.get(id=user_id)
