@@ -10,10 +10,15 @@ python manage.py migrate
 echo "Creating superuser"
 python manage.py shell -c "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'admin123!') if not User.objects.filter(username='admin').exists() else print('Admin user already exists')"
 
-echo "Starting server"
 # Get the PORT environment variable
 export PORT=${PORT:-8000}
-echo "Using port: $PORT"
+echo "Starting server on port: $PORT"
 
-# Start the server with the correct port
-exec gunicorn videoconferencing.wsgi:application --bind 0.0.0.0:$PORT 
+# Use Django's runserver for development or Gunicorn for production
+if [ "$RENDER" = "true" ]; then
+    echo "Running in production mode with Gunicorn"
+    exec gunicorn videoconferencing.wsgi:application --bind 0.0.0.0:$PORT --log-file -
+else
+    echo "Running in development mode with Django runserver"
+    exec python manage.py runserver 0.0.0.0:$PORT
+fi 
