@@ -1,1 +1,1 @@
-web: bash render_start.sh 
+web: bash start.sh 

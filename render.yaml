@@ -3,9 +3,11 @@ services:
     name: videoconference
     env: python
     buildCommand: ./build.sh
-    startCommand: bash render_start.sh
+    startCommand: bash start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.12
+      - key: PORT
+        value: 10000
       - key: DEBUG
         value: "False" 
