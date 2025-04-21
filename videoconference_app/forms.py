@@ -4,34 +4,43 @@ from django.contrib.auth.models import User
 import traceback
 
 class RegisterForm(UserCreationForm):
-    email = forms.EmailField(required=True)
-    first_name = forms.CharField(max_length=100, required=True)
-    last_name = forms.CharField(max_length=100, required=True)
+    username = forms.CharField(
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={"class": "input"})
+    )
+    email = forms.EmailField(
+        max_length=254,
+        required=True,
+        widget=forms.EmailInput(attrs={"class": "input"})
+    )
+    password1 = forms.CharField(
+        label="Password",
+        strip=False,
+        required=True,
+        widget=forms.PasswordInput(attrs={"class": "input"})
+    )
+    password2 = forms.CharField(
+        label="Confirm Password",
+        strip=False,
+        required=True,
+        widget=forms.PasswordInput(attrs={"class": "input"})
+    )
 
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'email', 'password1','password2')
-    
+        fields = ["username", "email", "password1", "password2"]
+
     def save(self, commit=True):
+        print(f"DEBUG RegisterForm.save() - Creating user with email: {self.cleaned_data['email']}, username: {self.cleaned_data['username']}")
         try:
-            print(f"Creating user with email: {self.cleaned_data['email']}")
-            user = super(RegisterForm, self).save(commit=False)
-            user.email = self.cleaned_data['email']
-            user.username = self.cleaned_data['email']
-            user.first_name = self.cleaned_data['first_name']
-            user.last_name = self.cleaned_data['last_name']
-            
-            # Debug information
-            print(f"User object created: username={user.username}, email={user.email}")
-            
-            if commit:
-                print("Saving user to database...")
-                user.save()
-                print(f"User saved with ID: {user.id}")
-            
+            # Set username to email to ensure we can look up users consistently
+            self.instance.username = self.cleaned_data['email']
+            self.instance.email = self.cleaned_data['email']
+            user = super().save(commit=commit)
+            print(f"DEBUG RegisterForm.save() - User saved successfully. ID: {user.id}")
             return user
         except Exception as e:
-            print(f"Error in RegisterForm.save(): {e}")
-            print(traceback.format_exc())
+            print(f"DEBUG RegisterForm.save() - Error: {str(e)}")
             raise
     

@@ -42,63 +42,46 @@ def register(request):
 
 
 def login_view(request):
-    if request.method=="POST":
+    context = {}
+    
+    if request.method == 'POST':
         email = request.POST.get('email')
         password = request.POST.get('password')
         
-        # Print debug info (will show in server logs)
-        print(f"Login attempt: {email}")
+        print(f"Login attempt: email={email}")
         
-        # Try to find user directly first
         try:
-            # Check if user exists with this email
-            user_exists = User.objects.filter(username=email).exists()
-            print(f"User exists check: {user_exists}")
+            # Try to authenticate with the username first
+            user = authenticate(request, username=email, password=password)
             
-            if user_exists:
-                # If user exists, try to get the user directly
-                user = User.objects.get(username=email)
+            # If that fails, try with email as username
+            if user is None:
+                # Get user by email
+                try:
+                    user_obj = User.objects.get(email=email)
+                    user = authenticate(request, username=user_obj.username, password=password)
+                    print(f"Authenticated with email: {email}")
+                except User.DoesNotExist:
+                    user = None
+                    print(f"No user found with email: {email}")
+            
+            if user is not None:
+                login(request, user)
+                print(f"User logged in: {user.username}, ID: {user.id}")
                 
-                # Check password manually
-                from django.contrib.auth.hashers import check_password
-                if check_password(password, user.password):
-                    print("Password check: SUCCESS")
-                    # Store user ID in session
-                    request.session['user_id'] = user.id
-                    return redirect("/dashboard")
-                else:
-                    print("Password check: FAILED")
-                    return render(request, 'login.html', {'error': "Invalid password. Please try again."})
-            else:
-                print("User not found")
-                return render(request, 'login.html', {'error': f"User with email '{email}' not found."})
-        except Exception as e:
-            print(f"Direct user lookup error: {e}")
-            
-        # If direct approach fails, try standard Django authenticate
-        user = authenticate(request, username=email, password=password)
-        if user is not None:
-            print("Django authenticate: SUCCESS")
-            # Store user info in session
-            try:
-                # Store user ID in our custom session key
+                # Store both user_id and user_email in session
                 request.session['user_id'] = user.id
+                request.session['user_email'] = user.email
                 
-                # Skip Django's standard login as it's problematic with MongoDB
-                # Manually add the signal for compatibility with other code
-                user_logged_in.send(sender=user.__class__, request=request, user=user)
-                
-                # Redirect the user after login
-                return redirect("/dashboard")
-            except Exception as e:
-                # If something went wrong, log it and show a friendly message
-                print(f"Login error: {e}")
-                return render(request, 'login.html', {'error': f"Login failed: {str(e)}"})
-        else:
-            print("Django authenticate: FAILED")
-            return render(request, 'login.html', {'error': "Invalid credentials. Please try again."})
-
-    return render(request, 'login.html')
+                return redirect('dashboard')
+            else:
+                print("Authentication failed")
+                context['error'] = 'Invalid email or password'
+        except Exception as e:
+            print(f"Login error: {str(e)}")
+            context['error'] = 'An error occurred during login'
+    
+    return render(request, 'login.html', context)
 
 # Custom decorator to handle both standard and custom auth
 def custom_login_required(view_func):
@@ -106,10 +89,17 @@ def custom_login_required(view_func):
         # Skip Django's standard authentication
         # as it's causing issues with MongoDB
         user_id = None
+        user_email = None
         
         # Try to get ID from our custom session
         try:
             user_id = request.session.get('user_id')
+        except:
+            pass
+        
+        # Try to get email from our custom session
+        try:
+            user_email = request.session.get('user_email')
         except:
             pass
             
@@ -128,6 +118,16 @@ def custom_login_required(view_func):
         if user_id:
             try:
                 user = User.objects.get(id=user_id)
+                # Add user to request
+                request.user = user
+                return view_func(request, *args, **kwargs)
+            except User.DoesNotExist:
+                pass
+        
+        # If we have a user email, try to get the user by email
+        if user_email:
+            try:
+                user = User.objects.get(username=user_email)
                 # Add user to request
                 request.user = user
                 return view_func(request, *args, **kwargs)
