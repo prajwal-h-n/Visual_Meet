@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -81,41 +82,33 @@ WSGI_APPLICATION = 'videoconferencing.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# Load environment variables
+load_dotenv()
+
 # Check if running on Render.com
 IS_RENDER = os.environ.get('RENDER', '') == 'true'
 
-if IS_RENDER:
-    # Use a persistent volume directory on Render
-    PERSISTENT_DIR = '/opt/render/project'
-    
-    # Make sure directory exists
-    if not os.path.exists(PERSISTENT_DIR):
-        os.makedirs(PERSISTENT_DIR)
-    
-    # Database configuration for Render
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(PERSISTENT_DIR, 'database.sqlite3'),
-            'OPTIONS': {
-                'timeout': 30,  # 30 seconds
-            }
+# Get MongoDB URI from environment variable or use default
+MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017/videoconferencedb')
+
+# Use MongoDB
+DATABASES = {
+    'default': {
+        'ENGINE': 'djongo',
+        'NAME': 'videoconferencedb',
+        'CLIENT': {
+            'host': MONGODB_URI,
         }
     }
-else:
-    # Use the default database location for local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
-# Ensure the database directory exists
-DB_DIR = os.path.dirname(DATABASES['default']['NAME'])
-if not os.path.exists(DB_DIR):
-    os.makedirs(DB_DIR)
-
+# For local development without MongoDB, uncomment these lines and comment out the MongoDB config above
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
