@@ -2,23 +2,19 @@
 # exit on error
 set -o errexit
 
-echo "Running migrations"
-python manage.py makemigrations
-python manage.py migrate
+echo "Starting application setup..."
 
-# Create a superuser for admin access
-echo "Creating superuser"
-python manage.py shell -c "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', 'admin123!') if not User.objects.filter(username='admin').exists() else print('Admin user already exists')"
+# Get PORT from environment
+export PORT=${PORT:-10000}
 
-# Get the PORT environment variable
-export PORT=${PORT:-8000}
-echo "Starting server on port: $PORT"
+# Force migrations for auth models first
+echo "Forcing auth migrations..."
+python manage.py migrate auth --noinput
 
-# Use Django's runserver for development or Gunicorn for production
-if [ "$RENDER" = "true" ]; then
-    echo "Running in production mode with Gunicorn"
-    exec gunicorn videoconferencing.wsgi:application --bind 0.0.0.0:$PORT --log-file -
-else
-    echo "Running in development mode with Django runserver"
-    exec python manage.py runserver 0.0.0.0:$PORT
-fi 
+# Then run all other migrations
+echo "Running all migrations..."
+python manage.py migrate --noinput
+
+# Start server with the correct port binding
+echo "Starting server on port $PORT"
+exec python manage.py runserver 0.0.0.0:$PORT 
